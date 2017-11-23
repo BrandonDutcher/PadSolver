@@ -1,0 +1,93 @@
+* daemon not running. starting it now at tcp:5037 *
+* daemon started successfully *
+add device 1: /dev/input/event15
+  name:     "es705 input"
+add device 2: /dev/input/event14
+  name:     "w1"
+add device 3: /dev/input/event12
+  name:     "hrm_sensor"
+add device 4: /dev/input/event11
+  name:     "ssp_context"
+add device 5: /dev/input/event10
+  name:     "meta_event"
+add device 6: /dev/input/event9
+  name:     "step_cnt_sensor"
+add device 7: /dev/input/event8
+  name:     "sig_motion_sensor"
+add device 8: /dev/input/event7
+  name:     "temp_humidity_sensor"
+add device 9: /dev/input/event6
+  name:     "proximity_sensor"
+add device 10: /dev/input/event5
+  name:     "light_sensor"
+add device 11: /dev/input/event4
+  name:     "gesture_sensor"
+add device 12: /dev/input/event3
+  name:     "qpnp_pon"
+add device 13: /dev/input/event0
+  name:     "sii8240_rcp"
+could not get driver version for /dev/input/mice, Not a typewriter
+add device 14: /dev/input/event13
+  name:     "gpio-keys"
+add device 15: /dev/input/event1
+  name:     "sec_touchkey"
+add device 16: /dev/input/event2
+  name:     "sec_touchscreen"
+/dev/input/event2: 0003 0039 00000a62
+/dev/input/event2: 0001 014a 00000001
+/dev/input/event2: 0003 0035 0000038a
+/dev/input/event2: 0003 0036 000004c0
+/dev/input/event2: 0003 0030 00000005
+/dev/input/event2: 0003 0031 00000004
+/dev/input/event2: 0000 0000 00000000
+/dev/input/event2: 0003 0035 00000389
+/dev/input/event2: 0003 0030 00000006
+/dev/input/event2: 0003 0031 00000005
+/dev/input/event2: 0000 0000 00000000
+/dev/input/event2: 0003 0035 00000387
+/dev/input/event2: 0000 0000 00000000
+/dev/input/event2: 0003 0035 0000037e
+/dev/input/event2: 0000 0000 00000000
+/dev/input/event2: 0003 0035 00000366
+/dev/input/event2: 0003 0036 000004c1
+/dev/input/event2: 0003 0031 00000006
+/dev/input/event2: 0000 0000 00000000
+/dev/input/event2: 0003 0035 0000033e
+/dev/input/event2: 0003 0036 000004c4
+/dev/input/event2: 0003 0031 00000005
+/dev/input/event2: 0000 0000 00000000
+/dev/input/event2: 0003 0035 00000310
+/dev/input/event2: 0003 0036 000004c9
+/dev/input/event2: 0003 0031 00000006
+/dev/input/event2: 0000 0000 00000000
+/dev/input/event2: 0003 0035 000002d9
+/dev/input/event2: 0003 0036 000004ce
+/dev/input/event2: 0000 0000 00000000
+/dev/input/event2: 0003 0035 0000029a
+/dev/input/event2: 0003 0036 000004d4
+/dev/input/event2: 0000 0000 00000000
+/dev/input/event2: 0003 0035 00000258
+/dev/input/event2: 0003 0036 000004dc
+/dev/input/event2: 0003 0031 00000005
+/dev/input/event2: 0000 0000 00000000
+/dev/input/event2: 0003 0035 00000212
+/dev/input/event2: 0003 0036 000004e5
+/dev/input/event2: 0000 0000 00000000
+/dev/input/event2: 0003 0035 000001c8
+/dev/input/event2: 0003 0036 000004f6
+/dev/input/event2: 0000 0000 00000000
+/dev/input/event2: 0003 0035 00000174
+/dev/input/event2: 0003 0036 0000050c
+/dev/input/event2: 0003 0031 00000006
+/dev/input/event2: 0000 0000 00000000
+/dev/input/event2: 0003 0035 0000011d
+/dev/input/event2: 0003 0036 00000526
+/dev/input/event2: 0003 0031 00000004
+/dev/input/event2: 0000 0000 00000000
+/dev/input/event2: 0003 0035 000000c4
+/dev/input/event2: 0003 0036 00000542
+/dev/input/event2: 0003 0031 00000006
+/dev/input/event2: 0000 0000 00000000
+/dev/input/event2: 0003 0039 ffffffff
+/dev/input/event2: 0001 014a 00000000
+/dev/input/event2: 0000 0000 00000000
