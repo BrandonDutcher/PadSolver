@@ -35,7 +35,7 @@ def adbdevices():
 def touchscreen_devices(serial=None):
 	return [dev.splitlines()[0].split()[-1] for dev in adbshell('getevent -il', serial).split('add device ') if dev.find('ABS_MT_POSITION_X') > -1]
 def genswipe(devicename, swipelist, serial=None):
-	pixellist = [[x[0]*sp56+startx,x[1]*sp56+starty] for x in swipelist]
+	pixellist = [[x[1]*sp56+startx,x[0]*sp56+starty] for x in swipelist]
 	
 	retval = []
 	retval.append('sendevent ' + devicename + ' 1 330 1')
@@ -214,7 +214,8 @@ def search(starty, startx, goal): #searches for the closest transport-distanced 
 		print "Error, no orbs of color", goal, "found"
 		print board
 		print lockedBoard
-		error
+		print len(swipelist)
+		exit(0)
 	return miny, minx
 					
 def swap(y, x):
@@ -322,6 +323,64 @@ def transportOrb(orby, orbx, targety, targetx, permission, endState):
 			return
 			
 	lockedBoard[targety, targetx] = endState
+
+def transportStep(orby, orbx, targety, targetx, permission, endState):
+	global cury, curx, board, lockedBoard, dirarray8, pathList, mixedUp
+	success = True
+	if orbx == targetx and orby == targety:
+		lockedBoard[orby, orbx] = 1
+		return
+	
+	diry = min(1, max(-1, targety-orby))
+	dirx = min(1, max(-1, targetx-orbx))
+	direction = dirarray8.index([diry,dirx])
+	orbpos = np.array([orby,orbx]) 
+	if lockedBoard[orby+diry,orbx+dirx] == 0 or permission:
+		success = path(orby+diry, orbx+dirx, permission, orby, orbx)
+	elif exists(orbpos+dirarray8[(direction+1)%8]) and (lockedBoard[dearray(orbpos+dirarray8[(direction+1)%8])] == 0 or permission):
+			# if the direction doesn't take you offboard and is not locked ( permission ignores that part )
+		success = path(orby+dirarray8[(direction+1)%8][0], orbx+dirarray8[(direction+1)%8][1], permission, orby, orbx)
+	elif exists(orbpos+dirarray8[(direction-1)%8]) and (lockedBoard[dearray(orbpos+dirarray8[(direction-1)%8])] == 0 or permission):
+		success = path(orby+dirarray8[(direction-1)%8][0], orbx+dirarray8[(direction-1)%8][1], permission, orby, orbx)
+	elif exists(orbpos+dirarray8[(direction+2)%8]) and (lockedBoard[dearray(orbpos+dirarray8[(direction+2)%8])] == 0 or permission):
+		success = path(orby+dirarray8[(direction+2)%8][0], orbx+dirarray8[(direction+2)%8][1], permission, orby, orbx)
+	elif exists(orbpos+dirarray8[(direction-2)%8]) and (lockedBoard[dearray(orbpos+dirarray8[(direction-2)%8])] == 0 or permission):
+		success = path(orby+dirarray8[(direction-2)%8][0], orbx+dirarray8[(direction-2)%8][1], permission, orby, orbx)
+	else: 
+		success = False
+	if success:
+		tempy = cury
+		tempx = curx
+		swap(orby,orbx)
+		orby = tempy
+		orbx = tempx
+		lockedBoard[orby, orbx] = endState
+		return
+	else:
+		if permission:
+			print "Transport REALLY failed this time"
+			print board
+			print ' '
+			print lockedBoard
+			print ' '
+			print mixedUp
+			exit()
+		print 'sliding in', board[orby,orbx]
+		pathList = [[99,99],[99,89],[99,79]]
+		transportOrb(orby, orbx, targety, targetx, True, endState) 	#gives access to push orb through locked orbs
+		lockedBoard[targety, targetx] = 1
+		for entry in mixedUp[::-1]:							#repairs earlier orbs
+			#print 'repairing at', entry[0], entry[1], 'with color', entry[2]
+			#print mixedUp
+			#print '--------'
+			#print board
+			#print ' '
+			#print lockedBoard
+			#print '--------'
+			displacedy, displacedx = search(entry[0],entry[1],entry[2])
+			transportOrb(displacedy, displacedx, entry[0], entry[1], False, endState)
+		mixedUp = []
+		return
 
 def getColorAdjLocked(y,x): #checks nearby immovable orbs for the colors they have
 	global board, lockedBoard
@@ -431,36 +490,36 @@ def getStepPriority(y,x):
 	elif prio8 == 6: return 0.5
 	elif prio8 >= 4 and prio8 <= 5: return 1
 	elif prio8 == 3 and prio4 >= 2: return 1
-	elif prio8 == 3 and prio4 <= 1: return 2
-	elif prio8 == 2: return 3
-	elif prio8 == 1: return 10
+	elif prio8 == 3 and prio4 <= 1: return 5
+	elif prio8 == 2: return 10
+	elif prio8 == 1: return 50
 	elif prio8 == 0:
 		print "Orb captured!, you're really good at playing Go"
 		print "y =", y, "x =", x
 		print board
-		print solvedBoard
+		print coloredBoard
 		print lockedBoard
-		exit(0)
+		return 1000
 	else:
 		print "idk screwed up in getStepPriority though"
 		exit(0)
 		
 def getCost(locy,locx,priority):
 	global board, cury, curx
-	orby, orbx = search(locy,locx,solvedBoard[locy,locx])
+	orby, orbx = search(locy,locx,coloredBoard[locy,locx])
 	if locy == orby and locx == orbx:
 		return 0
-	return float(mdistance(cury, curx, orby + min(1, max(-1, locy-orby)), orbx + min(1, max(-1, locx-orbx))))/priority
+	return float(mdistance(cury, curx, orby + min(1, max(-1, locy-orby)), orbx + min(1, max(-1, locx-orbx)))+1)/priority
 	
 def step():
-	global board, lockedBoard, solvedboard, cury, curx
-	costBoard = np.zeros_like(board)+100
+	global board, lockedBoard, coloredBoard, cury, curx
+	costBoard = np.zeros_like(board, dtype=float)+100
 	priorityBoard = np.zeros_like(board)
 	
 	for y in xrange(boardHeight):
 		for x in xrange(boardWidth):
 			priorityBoard[y,x] = getStepPriority(y,x)
-			if priorityBoard[y,x] != 0:
+			if priorityBoard[y,x] != 0 and coloredBoard[y,x] != board[cury,curx]:
 				costBoard[y,x] = getCost(y, x, priorityBoard[y,x])
 	
 	loc = np.where(costBoard == np.amin(costBoard))
@@ -469,10 +528,10 @@ def step():
 	locx = loc[1][0]
 	print board
 	print lockedBoard
-	print solvedBoard
+	print coloredBoard
 	print priorityBoard
 	print costBoard
-	orby, orbx = search(locy,locx, solvedBoard[locy,locx])
+	orby, orbx = search(locy,locx, coloredBoard[locy,locx])
 	print "moving",orby,orbx,"towards",locy,locx
 	
 	if mdistance(locy,locx,orby,orbx) <= 1:
@@ -480,7 +539,7 @@ def step():
 	else:
 		endState = 0
 		
-	transportOrb(orby, orbx, orby + min(1, max(-1, locy-orby)), orbx + min(1, max(-1, locx-orbx)), False, endState)
+	transportStep(orby, orbx, locy, locx, False, endState)
 	
 def makeMatch(starty, startx, dir, leng):
 	global board, lockedBoard, orbCount, allMatches
@@ -604,7 +663,7 @@ def arrangeBoard(): # oh god this is hard
 	while matchLengths.size:
 		pass
 
-def setToNumber(y,x,dir,color,length):
+def setToNumber(y,x,dir,color,length): # sets on solvedBoard
 	global solvedBoard, lockedBoard, arrLocs
 	loc = np.array([y,x])
 	if color == 0:
@@ -612,12 +671,12 @@ def setToNumber(y,x,dir,color,length):
 			solvedBoard[dearray(loc+np.multiply(dir,i))] = 0
 			lockedBoard[dearray(loc+np.multiply(dir,i))] = 0
 		arrLocs = arrLocs[:-1]
-		return True
+		return False
 	
-	arrLocs.append([y,x,dir,color,length])
 	for i in xrange(length):
 		if lockedBoard[dearray(loc+np.multiply(dir,i))] == 1:
 			return False
+	arrLocs.append([y,x,dir,color,length])
 	for i in xrange(length):
 		solvedBoard[dearray(loc+np.multiply(dir,i))] = color
 		lockedBoard[dearray(loc+np.multiply(dir,i))] = 1
@@ -635,6 +694,7 @@ def arrangeBoardBrute():
 		#print perm
 		if brute(0,0,1,perm):
 			break
+	print solvedBoard
 	
 def brute(y,x,mnum,perm):
 	global arrLocs
@@ -648,13 +708,15 @@ def brute(y,x,mnum,perm):
 			if setToNumber(y, x, [0,1], mnum, perm[mnum-1]):
 				if brute( y+int((x+1)/boardWidth), (x+1)%boardWidth, mnum+1, perm):
 					return True
-			setToNumber(y, x, [0,1], 0, perm[mnum-1])
+				setToNumber(y, x, [0,1], 0, perm[mnum-1])
+				print arrLocs
 		
 		if exists([y+perm[mnum-1]-1,x]):
 			if setToNumber(y, x, [1,0], mnum, perm[mnum-1]):
 				if brute( y+int((x+1)/boardWidth), (x+1)%boardWidth, mnum+1, perm):
 					return True
-			setToNumber(y, x, [1,0], 0, perm[mnum-1])
+				setToNumber(y, x, [1,0], 0, perm[mnum-1])
+				print arrLocs
 		
 	else:
 		if brute( y+int((x+1)/boardWidth), (x+1)%boardWidth, mnum, perm):
@@ -662,16 +724,34 @@ def brute(y,x,mnum,perm):
 	return False
 	
 def assignColors():
-	global solvedBoard, allMatches
+	global coloredBoard, solvedBoard, allMatches
+	coloredBoard = np.zeros_like(solvedBoard)
+	for l in arrLocs:
+		print l
+	print allMatches
 	maxi = np.amax(solvedBoard)
 	for i in xrange(1,maxi+1):
 		for match in allMatches:
 			if match[1] == arrLocs[i-1][4]:
-				solvedBoard[solvedBoard == i] = match[0]
+				coloredBoard[solvedBoard == i] = match[0]
 				allMatches.remove(match)
 				break
 	print "Colors Assigned"
-	print solvedBoard
+	print coloredBoard
+	
+def numberBoard():
+	global lockedBoard
+	lockedBoard = np.zeros_like(lockedBoard)
+	i = 10
+	for y in xrange(boardHeight):
+		for x in xrange(boardWidth):
+			orby, orbx = search(y,x,coloredBoard[y,x])
+			board[orby,orbx] = i
+			coloredBoard[y,x] = i
+			i += 1
+	print "Board Numbered"
+	print board
+	print coloredBoard
 
 def solveBoard():
 	global board, lockedBoard, curx, cury, trashOrbs, allMatches
@@ -680,16 +760,18 @@ def solveBoard():
 	allMatches = getMatches()
 	arrangeBoardBrute()
 	assignColors()
-	cury = 2
-	curx = 2
+	#cury, curx = -1, -1
+	#numberBoard()
+	cury, curx = 2, 2
 	mv(cury,curx)
 	pathList.append([cury,curx])
 	lockedBoard = np.zeros_like(lockedBoard)
-	while( not np.array_equal(board,solvedBoard)):
+	while( not np.array_equal(board,coloredBoard)):
 		step()
 	print board
 	print lockedBoard
-	print solvedBoard
+	print coloredBoard
+	print len(swipelist)
 	exeswipe(swipelist)
 	'''
 	curx, cury = -1, -1
