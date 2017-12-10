@@ -382,97 +382,6 @@ def transportStep(orby, orbx, targety, targetx, permission, endState):
 		mixedUp = []
 		return
 
-def getColorAdjLocked(y,x): #checks nearby immovable orbs for the colors they have
-	global board, lockedBoard
-	list = []
-	if exists([y, x-1]) and lockedBoard[y, x-1] == 1:
-		list.append(board[y,x-1])
-	if exists([y, x+1]) and lockedBoard[y, x+1] == 1:
-		list.append(board[y,x+1])
-	if exists([y-1, x]) and lockedBoard[y-1, x] == 1:
-		list.append(board[y-1,x])
-	if exists([y+1, x]) and lockedBoard[y+1, x] == 1:
-		list.append(board[y+1,x])
-	return list
-	
-def getUnpreferred(starty, startx, dir, leng): # checks an entire combo area for surrounding immovable orbs' colors, so as to avoid those and prevent match crossing
-	unpreferredOrbs = []
-	for i in xrange(leng):
-		list = getColorAdjLocked(starty+dir[0]*i, startx+dir[1]*i)
-		for entry in list:
-			if entry not in unpreferredOrbs:
-				unpreferredOrbs.append(entry)
-	return unpreferredOrbs
-	
-def findMatch(starty, startx, dir, leng, undesired):
-	global board, lockedBoard, orbCount, carriedColor, allMatches
-	# check to see if there are locked orbs in the way
-	for i in xrange(leng):
-		if not exists([starty+dir[0]*i,startx+dir[1]*i]):
-			print "can't make a match here because OoB"
-			print "with values", starty, startx, dir, leng
-			return False
-			
-		if lockedBoard[starty+dir[0]*i, startx+dir[1]*i] == 1:
-			print "can't make a match here because of locks"
-			print "with values", starty, startx, dir, leng
-			return False
-	
-	# check what colors would not create a new combo
-	
-	unpreferredOrbs = getUnpreferred(starty, startx, dir, leng)
-	#print ' '
-	#print unpreferredOrbs
-	preferredOrbs = [x for x in xrange(1,len(orbCount)) if x not in unpreferredOrbs]
-	
-	# check if match is already made
-	color = board[starty,startx]
-	if color not in unpreferredOrbs:
-		perfect = True
-		for i in xrange(1,leng):
-			if board[starty+dir[0]*i,startx+dir[1]*i] != color:
-				perfect = False
-				
-		if perfect:
-			print 'match already made'
-			return color
-	
-	# find optimal color to match here
-	allowedIndex = np.where(np.array([allMatches[x][1] for x in xrange(len(allMatches))]) == leng)
-	print [allMatches[x][1] for x in xrange(len(allMatches))]
-	print allowedIndex[0]
-	colorDistanceList = np.zeros(10, dtype=np.int)
-	if len(allowedIndex[0]) == 0:
-		print 'no matches of size', leng, 'found'
-		return False
-		
-	for index in allowedIndex[0]:
-		color = allMatches[index][0]
-		print allMatches[index]
-		if color not in unpreferredOrbs:
-			for i in xrange(leng):
-				absy, absx = search(starty, startx, color)
-				lockedBoard[absy,absx] = 2
-				colorDistanceList[color] += tdistance(starty+dir[0]*i, startx+dir[1]*i, absy, absx)		
-				
-	oldColorDistanceList = [x for x in colorDistanceList]
-	newColorDistanceList = [x for x in colorDistanceList if x != 0]
-	print oldColorDistanceList
-	
-	# reset lockedBoard
-	twos = np.where(lockedBoard == 2)
-	for i in xrange(len(twos[0])):
-		lockedBoard[ twos[0][i], twos[1][i] ] = 0
-	
-	# make sure there are orbs to match
-	if not newColorDistanceList:
-		print "No more Orb matches"
-		return False
-	
-	color = oldColorDistanceList.index(min(newColorDistanceList))
-	print 'matching', color
-	return color
-	
 def getStepPriority(y,x):
 	global lockedBoard, dirarray8, dirarray4
 	if lockedBoard[y,x] == 1: return 0
@@ -540,53 +449,8 @@ def step():
 		endState = 0
 		
 	transportStep(orby, orbx, locy, locx, False, endState)
-	
-def makeMatch(starty, startx, dir, leng):
-	global board, lockedBoard, orbCount, allMatches
-	
-	goalcolor = findMatch(starty, startx, dir, leng, [])
-	if not goalcolor:
-		return False
-	print 'matching:', goalcolor
-	print '----'
-	print board
-	print ' ' 
-	print lockedBoard
-	print '----'
-	for i in range(leng):
-		orby, orbx = search(starty+dir[0]*i,startx+dir[1]*i,goalcolor)
-		transportOrb(orby,orbx,starty+dir[0]*i,startx+dir[1]*i, False,1)
-	orbCount[goalcolor] -= leng
-	if matchLocs[-1] != [starty, startx, dir, leng, goalcolor]:
-		matchLocs.append([starty, startx, dir, leng, goalcolor])
-	allMatches.remove([goalcolor,leng])
-	return True
+	print ' '
 
-def selectStartOrb(): # tries to select an orb that won't be matched in the end
-	global allMatches, trashOrbs
-	mincolor = 0
-	mindist = 99
-	if trashOrbs:
-		for entry in trashOrbs:
-			y, x = search(0,0,entry[0])
-			curdist = mdistance(0,0,y,x)
-			if curdist < mindist:
-				mincolor = entry[0]
-				mindist = curdist
-		return search(0,0,mincolor)
-	else:
-		for entry in allMatches:
-			if entry[1] == 3:
-				y, x = search(0,0,entry[0])
-				curdist = mdistance(0,0,y,x)
-				if curdist < mindist:
-					mincolor = entry[0]
-					mindist = curdist
-		allMatches.remove([mincolor, 3])
-		return search(0,0,mincolor)
-	error #no matches of 3 found
-	return 1,0
-	
 def getMatches(): # looks at the board and groups the orbs into their best potential combos
 	global orbCount
 	allMatches = []
@@ -604,64 +468,28 @@ def getMatches(): # looks at the board and groups the orbs into their best poten
 				orbCount[color] -= 1
 	return allMatches + trashOrbs
 
-def getClosestZero(starty, startx):
-	global lockedBoard
-	miny = 99
-	minx = 99
-	mindist = 99
-	for y in xrange(len(lockedBoard)):
-		for x in xrange(len(lockedBoard[0])):
-			if lockedBoard[y, x] == 0:
-				if mdistance(starty, startx, y, x) <= mindist:
-					mindist = mdistance(starty, startx, y, x)
-					miny, minx = y, x
-	print 'closest zero to', starty, startx, 'at', miny, minx
-	print lockedBoard
-	return miny, minx
+class unique_element:
+    def __init__(self,value,occurrences):
+        self.value = value
+        self.occurrences = occurrences
 
-def getSnugness(y, x, size):
-	coord = np.array([y,x])
-	maximum = [0,0,0,0]
-	if lockedBoard[y,x] != 0:
-		return 0, [0,0]
-	for i, dir in enumerate(dirarray4):
-		for j in xrange(size):
-			ndir = np.multiply(dir,j)
-			if exists(coord+ndir) and lockedBoard[dearray(coord+ndir)] == 0:
-				for dirsub in dirarray4:
-					if not exists(coord+ndir+dirsub) or exists(coord+ndir+dirsub) and lockedBoard[dearray(coord+ndir+dirsub)] != 0:
-						maximum[i] += 1
-			else: 
-				maximum[i] = 0
-				break
-	print maximum
-	return max(maximum), dirarray4[maximum.index(max(maximum))]
-	
-def arrangeBoard(): # oh god this is hard
-	global solvedBoard, arrLocs
-	solvedBoard = np.zeros_like(board)
-	priorityBoard = np.zeros_like(board)
-	
-	allMatches = getMatches()
-	matchOrdering = [[],[],[],[]]
-	for match in allMatches:
-		if match[1] == 5: matchOrdering[0].append(match[1])
-		elif match[1] == 4: matchOrdering[2].append(match[1])	# need to have the 4 first to match it first but the 1 has to come first in the filling in
-		elif match[1] == 1: matchOrdering[1].append(match[1])
-		elif match[1] == 3: matchOrdering[3].append(match[1])
-		else: print "k, that didn't work here's the matches:", allMatches
-	
-	matchLengths = []
-	for matchSet in matchOrdering: matchLengths += matchSet
-	
-	arrLocs = []
-	mnum = 1
-	setToNumber(0,0,[1,0],mnum,matchLengths[0])
-	currentrem = matchLengths[0]%3
-	mnum += 1
-	setToNumber = setToNumber[1:]
-	while matchLengths.size:
-		pass
+def perm_unique(elements):
+    eset=set(elements)
+    listunique = [unique_element(i,elements.count(i)) for i in eset]
+    u=len(elements)
+    return perm_unique_helper(listunique,[0]*u,u-1)
+
+def perm_unique_helper(listunique,result_list,d):
+    if d < 0:
+        yield tuple(result_list)
+    else:
+        for i in listunique:
+            if i.occurrences > 0:
+                result_list[d]=i.value
+                i.occurrences-=1
+                for g in  perm_unique_helper(listunique,result_list,d-1):
+                    yield g
+                i.occurrences+=1
 
 def setToNumber(y,x,dir,color,length): # sets on solvedBoard
 	global solvedBoard, lockedBoard, arrLocs
@@ -687,7 +515,8 @@ def arrangeBoardBrute():
 	solvedBoard = np.zeros_like(board)
 	getMatches()
 	allLengths = [x[1] for x in allMatches]
-	allPerm = np.unique(list(itertools.permutations(allLengths)),axis=0) # this takes rather long, but will probably end up under 10000 after running
+	print allLengths
+	allPerm = list(perm_unique(allLengths))
 	#print allLengths
 	arrLocs = []
 	for perm in allPerm:#change this back
@@ -709,19 +538,33 @@ def brute(y,x,mnum,perm):
 				if brute( y+int((x+1)/boardWidth), (x+1)%boardWidth, mnum+1, perm):
 					return True
 				setToNumber(y, x, [0,1], 0, perm[mnum-1])
-				print arrLocs
+				#print arrLocs
 		
 		if exists([y+perm[mnum-1]-1,x]):
 			if setToNumber(y, x, [1,0], mnum, perm[mnum-1]):
 				if brute( y+int((x+1)/boardWidth), (x+1)%boardWidth, mnum+1, perm):
 					return True
 				setToNumber(y, x, [1,0], 0, perm[mnum-1])
-				print arrLocs
+				#print arrLocs
 		
 	else:
 		if brute( y+int((x+1)/boardWidth), (x+1)%boardWidth, mnum, perm):
 			return True
 	return False
+	
+def hackySplit(m): #I am so, so sorry
+	while True:
+		try:
+			m.remove([])
+		except:
+			if len(m) == 1:
+				return m[0]
+			elif len(m) == 2:
+				return m[0],m[1]
+			elif len(m) == 3:
+				return m[0],m[1],m[2]
+			elif len(m) == 4:
+				return m[0],m[1],m[2],m[3]
 	
 def assignColors():
 	global coloredBoard, solvedBoard, allMatches
@@ -729,6 +572,8 @@ def assignColors():
 	for l in arrLocs:
 		print l
 	print allMatches
+	
+	arrangements = itertools.product(hackySplit([[x for x in allMatches if x[1] == 1],[x for x in allMatches if x[1] == 3],[x for x in allMatches if x[1] == 4],[x for x in allMatches if x[1] == 5]]))
 	maxi = np.amax(solvedBoard)
 	for i in xrange(1,maxi+1):
 		for match in allMatches:
@@ -738,23 +583,20 @@ def assignColors():
 				break
 	print "Colors Assigned"
 	print coloredBoard
-	
-def numberBoard():
-	global lockedBoard
-	lockedBoard = np.zeros_like(lockedBoard)
-	i = 10
-	for y in xrange(boardHeight):
-		for x in xrange(boardWidth):
-			orby, orbx = search(y,x,coloredBoard[y,x])
-			board[orby,orbx] = i
-			coloredBoard[y,x] = i
-			i += 1
-	print "Board Numbered"
-	print board
-	print coloredBoard
 
+def getMoves():
+	global swipelist, lockedBoard, curx, cury
+	swipelist = []
+	cury, curx = 2, 2
+	mv(cury,curx)
+	pathList.append([cury,curx])
+	lockedBoard = np.zeros_like(lockedBoard)
+	while( not np.array_equal(board,coloredBoard)):
+		step()
+	return swipelist
+	
 def solveBoard():
-	global board, lockedBoard, curx, cury, trashOrbs, allMatches
+	global board, lockedBoard, trashOrbs, allMatches
 	board = getBoard()
 	lockedBoard = np.zeros_like(board, dtype=int)
 	allMatches = getMatches()
@@ -762,26 +604,12 @@ def solveBoard():
 	assignColors()
 	#cury, curx = -1, -1
 	#numberBoard()
-	cury, curx = 2, 2
-	mv(cury,curx)
-	pathList.append([cury,curx])
-	lockedBoard = np.zeros_like(lockedBoard)
-	while( not np.array_equal(board,coloredBoard)):
-		step()
+	moves = getMoves()
 	print board
 	print lockedBoard
 	print coloredBoard
-	print len(swipelist)
-	exeswipe(swipelist)
-	'''
-	curx, cury = -1, -1
-	curx, cury = selectStartOrb()
-	mv(curx,cury)
-	pathList.append([curx,cury])
-	
-	print board
-	print lockedBoard
-	exeswipe(swipelist)'''
+	print len(moves)
+	exeswipe(moves)
 
 solveBoard()
 #do some ending thing if I can
