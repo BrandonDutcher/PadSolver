@@ -5,6 +5,7 @@ from time import time
 import numpy as np
 import subprocess
 import itertools
+import random
 import cv2
 import os
 
@@ -102,8 +103,8 @@ def getBoard():
 	threshold = 0.9
 	'''
 	
-	subprocess.call('adb shell screencap -p /sdcard/screencap.png',shell=True) # take and pull screenshot
-	subprocess.call('adb pull /sdcard/screencap.png',shell=True) # stored in same folder as this file
+	#subprocess.call('adb shell screencap -p /sdcard/screencap.png',shell=True) # take and pull screenshot
+	#subprocess.call('adb pull /sdcard/screencap.png',shell=True) # stored in same folder as this file
 	img = cv2.imread('screencap.png',0)
 	#cv2.imshow('image',img)
 	#cv2.waitKey(0)
@@ -584,10 +585,35 @@ def assignColors():
 	print "Colors Assigned"
 	print coloredBoard
 
+def arrangeBoardRandom():
+	global solvedBoard, lockedBoard, coloredBoard, arrLocs, allPerm
+	solvedBoard = np.zeros_like(board)
+	getMatches()
+	
+	shortpath = xrange(1000)
+	arrLocs = []
+	numberofsuccesses = 0
+	for i in xrange(1000):
+		match = random.sample(allMatches,len(allMatches))
+		colors = [x[0] for x in match]
+		lengths = [x[1] for x in match]
+		if brute(0,0,1,lengths):
+			numberofsuccesses += 1
+			maxi = np.amax(solvedBoard)
+			coloredBoard = np.zeros_like(solvedBoard)
+			for i in xrange(1,maxi+1): coloredBoard[solvedBoard == i] = colors[i-1]
+			swipelist = getMoves()
+			if len(swipelist) < len(shortpath): #could add more checks like max combo
+				shortpath = swipelist
+			swipelist = []
+	print "number of successes = " + str(len(shortpath))
+	return shortpath
+	
+	
 def getMoves():
 	global swipelist, lockedBoard, curx, cury
 	swipelist = []
-	cury, curx = 2, 2
+	cury, curx = 2, 2 #maybe pick one of the most common color?
 	mv(cury,curx)
 	pathList.append([cury,curx])
 	lockedBoard = np.zeros_like(lockedBoard)
@@ -600,11 +626,9 @@ def solveBoard():
 	board = getBoard()
 	lockedBoard = np.zeros_like(board, dtype=int)
 	allMatches = getMatches()
-	arrangeBoardBrute()
-	assignColors()
+	moves = arrangeBoardRandom()
 	#cury, curx = -1, -1
 	#numberBoard()
-	moves = getMoves()
 	print board
 	print lockedBoard
 	print coloredBoard
