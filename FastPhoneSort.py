@@ -15,6 +15,7 @@ startx = 96
 starty = 1124
 boardWidth = 6
 boardHeight = 5
+top,bottom,left,right = 0,boardHeight-1,0,boardWidth-1
 
 orbCount = [0,0,0,0,0,0,0,0,0,0,0]
 orbTypeCount = 7 #how many types of orbs are programmed in
@@ -215,7 +216,8 @@ def search(starty, startx, goal): #searches for the closest transport-distanced 
 		print "Error, no orbs of color", goal, "found"
 		print board
 		print lockedBoard
-		print len(swipelist)
+		print coloredBoard
+		print len(shortpath), "was the best though"
 		exit(0)
 	return miny, minx
 					
@@ -223,6 +225,7 @@ def swap(y, x):
 	global cury, curx, board, lockedBoard, pathList, mixedUp, swipelist
 	if len(swipelist) > 300:
 		print 'swipelist longer than 300 entries. Likely entered a loop somewhere, not going to execute'
+		print len(shortpath), "was best though"
 		exit(0)
 	if abs(cury-y > 1) or abs(curx-x > 1):
 		print 'Error, moving too far in a swap'
@@ -252,17 +255,17 @@ def path(y, x, permission, orby, orbx):
 		
 		if (lockedBoard[cury+diry,curx+dirx] == 0 or permission) and not np.array_equal([orby, orbx], curpos+dirarray8[(direction)]):
 			swap(cury+diry, curx+dirx)
-		elif exists(curpos+dirarray8[(direction+1)%8]) and not np.array_equal([orby, orbx], curpos+dirarray8[(direction+1)%8]) and (lockedBoard[dearray(curpos+dirarray8[(direction+1)%8])] == 0 or permission):
+		elif exists(curpos+dirarray8[(direction+1)%8]) and (not np.array_equal([orby, orbx], curpos+dirarray8[(direction+1)%8])) and (lockedBoard[dearray(curpos+dirarray8[(direction+1)%8])] == 0 or permission):
 			# This paths it within the bounds of the board, not through locked orbs, and also not through the orb that is currently being transported (if given 'admin')
 			swap(cury+dirarray8[(direction+1)%8][0],curx+dirarray8[(direction+1)%8][1])
-		elif exists(curpos+dirarray8[(direction-1)%8]) and not np.array_equal([orby, orbx], curpos+dirarray8[(direction-1)%8]) and (lockedBoard[dearray(curpos+dirarray8[(direction-1)%8])] == 0 or permission):
+		elif exists(curpos+dirarray8[(direction-1)%8]) and (not np.array_equal([orby, orbx], curpos+dirarray8[(direction-1)%8])) and (lockedBoard[dearray(curpos+dirarray8[(direction-1)%8])] == 0 or permission):
 			swap(cury+dirarray8[(direction-1)%8][0],curx+dirarray8[(direction-1)%8][1])
-		elif exists(curpos+dirarray8[(direction+2)%8]) and not np.array_equal([orby, orbx], curpos+dirarray8[(direction+2)%8]) and (lockedBoard[dearray(curpos+dirarray8[(direction+2)%8])] == 0 or permission):
+		elif exists(curpos+dirarray8[(direction+2)%8]) and (not np.array_equal([orby, orbx], curpos+dirarray8[(direction+2)%8])) and (lockedBoard[dearray(curpos+dirarray8[(direction+2)%8])] == 0 or permission):
 			swap(cury+dirarray8[(direction+2)%8][0],curx+dirarray8[(direction+2)%8][1])
-		elif exists(curpos+dirarray8[(direction-2)%8]) and not np.array_equal([orby, orbx], curpos+dirarray8[(direction-2)%8]) and (lockedBoard[dearray(curpos+dirarray8[(direction-2)%8])] == 0 or permission):
+		elif exists(curpos+dirarray8[(direction-2)%8]) and (not np.array_equal([orby, orbx], curpos+dirarray8[(direction-2)%8])) and (lockedBoard[dearray(curpos+dirarray8[(direction-2)%8])] == 0 or permission):
 			swap(cury+dirarray8[(direction-2)%8][0],curx+dirarray8[(direction-2)%8][1])
 		else: 
-			print "pathing failed"
+			#print "pathing failed"
 			return False
 	if pathList[-3] == [cury,curx]:
 		return False
@@ -308,7 +311,7 @@ def transportOrb(orby, orbx, targety, targetx, permission, endState):
 				exit()
 			print 'sliding in', board[orby,orbx]
 			pathList = [[99,99],[99,89],[99,79]]
-			transportOrb(orby, orbx, targety, targetx, True, endState) 	#gives access to push orb through locked orbs
+			transportOrb(orby, orbx, targety, targetx, True, endState) 	#gives access to push orb through locked 
 			lockedBoard[targety, targetx] = 1
 			for entry in mixedUp[::-1]:							#repairs earlier orbs
 				#print 'repairing at', entry[0], entry[1], 'with color', entry[2]
@@ -366,7 +369,7 @@ def transportStep(orby, orbx, targety, targetx, permission, endState):
 			print ' '
 			print mixedUp
 			exit()
-		print 'sliding in', board[orby,orbx]
+		#print 'sliding in', board[orby,orbx]
 		pathList = [[99,99],[99,89],[99,79]]
 		transportOrb(orby, orbx, targety, targetx, True, endState) 	#gives access to push orb through locked orbs
 		lockedBoard[targety, targetx] = 1
@@ -379,13 +382,43 @@ def transportStep(orby, orbx, targety, targetx, permission, endState):
 			#print lockedBoard
 			#print '--------'
 			displacedy, displacedx = search(entry[0],entry[1],entry[2])
-			transportOrb(displacedy, displacedx, entry[0], entry[1], False, endState)
+			transportOrb(displacedy, displacedx, entry[0], entry[1], False, 1)
 		mixedUp = []
 		return
 
 def getStepPriority(y,x):
-	global lockedBoard, dirarray8, dirarray4
+	global top, bottom, left, right
 	if lockedBoard[y,x] == 1: return 0
+	if not 0 in lockedBoard[top,:]: top = top+1
+	if not 0 in lockedBoard[bottom,:]: bottom = bottom-1
+	if not 0 in lockedBoard[:,left]: left = left+1
+	if not 0 in lockedBoard[:,right]: right = right-1
+	if top>0:
+		if 0 in lockedBoard[0:top,:]:
+			print "HERE (top)"
+			print lockedBoard
+			exit(0)
+	if bottom<boardHeight-1:
+		if 0 in lockedBoard[bottom+1:boardHeight,:]:
+			print "HERE (bottom)"
+			print lockedBoard
+			exit(0)
+	if top>0:
+		if 0 in lockedBoard[:,0:left]:
+			print "HERE (left)"
+			print lockedBoard
+			exit(0)
+	if top>0:
+		if 0 in lockedBoard[:,right+1:boardWidth]:
+			print "HERE (right)"
+			print lockedBoard
+			exit(0)
+	if bottom-top < right-left and (x == left or x == right): return 2
+	if right-left < bottom-top and (y == top or y == bottom): return 2
+	if y == top or y == bottom or x == left or x == right: return 1
+	else: return 0
+		
+	'''
 	loc = np.array([y,x])
 	prio8 = 0
 	for dir in dirarray8:
@@ -413,6 +446,8 @@ def getStepPriority(y,x):
 	else:
 		print "idk screwed up in getStepPriority though"
 		exit(0)
+		'''
+		
 		
 def getCost(locy,locx,priority):
 	global board, cury, curx
@@ -423,26 +458,29 @@ def getCost(locy,locx,priority):
 	
 def step():
 	global board, lockedBoard, coloredBoard, cury, curx
+	if len(swipelist) > len(shortpath):
+		return False
 	costBoard = np.zeros_like(board, dtype=float)+100
 	priorityBoard = np.zeros_like(board)
 	
 	for y in xrange(boardHeight):
 		for x in xrange(boardWidth):
 			priorityBoard[y,x] = getStepPriority(y,x)
-			if priorityBoard[y,x] != 0 and coloredBoard[y,x] != board[cury,curx]:
+			if priorityBoard[y,x] != 0 and (coloredBoard[y,x] != board[cury,curx] or np.sum(lockedBoard[coloredBoard == board[cury,curx]] == 0) > 1):
 				costBoard[y,x] = getCost(y, x, priorityBoard[y,x])
 	
 	loc = np.where(costBoard == np.amin(costBoard))
 	#print loc
 	locy = loc[0][0]
 	locx = loc[1][0]
-	print board
-	print lockedBoard
-	print coloredBoard
-	print priorityBoard
-	print costBoard
+	#print board
+	#print lockedBoard
+	#print coloredBoard
+	#print priorityBoard
+	#print costBoard
+	#print top,bottom,left,right
 	orby, orbx = search(locy,locx, coloredBoard[locy,locx])
-	print "moving",orby,orbx,"towards",locy,locx
+	#print "moving",orby,orbx,"towards",locy,locx
 	
 	if mdistance(locy,locx,orby,orbx) <= 1:
 		endState = 1
@@ -450,7 +488,8 @@ def step():
 		endState = 0
 		
 	transportStep(orby, orbx, locy, locx, False, endState)
-	print ' '
+	return True
+	#print ' '
 
 def getMatches(): # looks at the board and groups the orbs into their best potential combos
 	global orbCount
@@ -529,10 +568,12 @@ def arrangeBoardBrute():
 def brute(y,x,mnum,perm):
 	global arrLocs
 	if not (0 in solvedBoard):
-		print 'Board Organized'
+		#print 'Board Organized'
 		#print solvedBoard
 		#print arrLocs
 		return True
+	if not exists([y,x]):
+		print solvedBoard
 	if lockedBoard[y,x] == 0:
 		if exists([y,x+perm[mnum-1]-1]):
 			if setToNumber(y, x, [0,1], mnum, perm[mnum-1]):
@@ -586,26 +627,31 @@ def assignColors():
 	print coloredBoard
 
 def arrangeBoardRandom():
-	global solvedBoard, lockedBoard, coloredBoard, arrLocs, allPerm
+	global solvedBoard, lockedBoard, coloredBoard, arrLocs, board, left, right, top, bottom, shortpath
 	solvedBoard = np.zeros_like(board)
 	getMatches()
-	
-	shortpath = xrange(1000)
-	arrLocs = []
+	shortpath = xrange(300)
 	numberofsuccesses = 0
 	for i in xrange(1000):
 		match = random.sample(allMatches,len(allMatches))
 		colors = [x[0] for x in match]
 		lengths = [x[1] for x in match]
+		solvedBoard = np.zeros_like(board)
+		lockedBoard = np.zeros_like(board)
+		arrLocs = []
 		if brute(0,0,1,lengths):
+			#print 'a'*1000
 			numberofsuccesses += 1
 			maxi = np.amax(solvedBoard)
 			coloredBoard = np.zeros_like(solvedBoard)
-			for i in xrange(1,maxi+1): coloredBoard[solvedBoard == i] = colors[i-1]
+			for i in xrange(maxi): coloredBoard[solvedBoard == i+1] = colors[i]
+			tempboard = np.copy(board)
+			top,bottom,left,right = 0,boardHeight-1,0,boardWidth-1
 			swipelist = getMoves()
 			if len(swipelist) < len(shortpath): #could add more checks like max combo
 				shortpath = swipelist
-			swipelist = []
+			print len(swipelist)
+			board = np.copy(tempboard)
 	print "number of successes = " + str(len(shortpath))
 	return shortpath
 	
@@ -618,7 +664,9 @@ def getMoves():
 	pathList.append([cury,curx])
 	lockedBoard = np.zeros_like(lockedBoard)
 	while( not np.array_equal(board,coloredBoard)):
-		step()
+		if not step():
+			swipelist = xrange(300)
+			break
 	return swipelist
 	
 def solveBoard():
