@@ -92,9 +92,10 @@ def getBoard():
 	light = cv2.imread('assets/lightorb.png',0)[10:-10,10:-10]
 	dark = cv2.imread('assets/darkorb.png',0)[10:-10,10:-10]
 	heart = cv2.imread('assets/heartorb.png',0)[10:-10,10:-10]
-	imarray = [fire,water,wood,light,dark,heart]
+	jammer = cv2.imread('assets/jammerorb.png',0)[10:-10,10:-10]
+	poison = cv2.imread('assets/poisonorb.png',0)[10:-10,10:-10]
+	imarray = [fire,water,wood,light,dark,heart,jammer,poison]
 	#jammer = 
-	#poison = 
 	#mortal poison = 
 	#imgsize = len(fire) # for color averaging techniques
 	''' # for color averaging techniques
@@ -104,8 +105,8 @@ def getBoard():
 	threshold = 0.9
 	'''
 	
-	#subprocess.call('adb shell screencap -p /sdcard/screencap.png',shell=True) # take and pull screenshot
-	#subprocess.call('adb pull /sdcard/screencap.png',shell=True) # stored in same folder as this file
+	subprocess.call('adb shell screencap -p /sdcard/screencap.png',shell=True) # take and pull screenshot
+	subprocess.call('adb pull /sdcard/screencap.png',shell=True) # stored in same folder as this file
 	img = cv2.imread('screencap.png',0)
 	#cv2.imshow('image',img)
 	#cv2.waitKey(0)
@@ -301,14 +302,8 @@ def transportOrb(orby, orbx, targety, targetx, permission, endState):
 			orby = tempy
 			orbx = tempx
 		else:
-			if permission:
-				print "Transport REALLY failed this time"
-				print board
-				print ' '
-				print lockedBoard
-				print ' '
-				print mixedUp
-				exit()
+			if len(swipelist) > len(shortpath):
+				return
 			print 'sliding in', board[orby,orbx]
 			pathList = [[99,99],[99,89],[99,79]]
 			transportOrb(orby, orbx, targety, targetx, True, endState) 	#gives access to push orb through locked 
@@ -652,7 +647,6 @@ def arrangeBoardRandom():
 				shortpath = swipelist
 			print len(swipelist)
 			board = np.copy(tempboard)
-	print "number of successes = " + str(len(shortpath))
 	return shortpath
 	
 	
@@ -665,8 +659,7 @@ def getMoves():
 	lockedBoard = np.zeros_like(lockedBoard)
 	while( not np.array_equal(board,coloredBoard)):
 		if not step():
-			swipelist = xrange(300)
-			break
+			return xrange(300)
 	return swipelist
 	
 def solveBoard():
