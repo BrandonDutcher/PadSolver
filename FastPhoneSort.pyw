@@ -254,7 +254,6 @@ def swap(y, x):
 	board[cury,curx] = tempval
 	cury = y
 	curx = x
-
 def path(y, x, permission, orby, orbx):
 	global cury, curx, board, lockedBoard, dirarray8, pathList
 
@@ -281,7 +280,6 @@ def path(y, x, permission, orby, orbx):
 	if pathList[-3] == [cury,curx]:
 		return False
 	return True
-
 def transportOrb(orby, orbx, targety, targetx, permission, endState):
 	global cury, curx, board, lockedBoard, dirarray8, pathList, mixedUp
 	success = True
@@ -332,7 +330,6 @@ def transportOrb(orby, orbx, targety, targetx, permission, endState):
 			return
 
 	lockedBoard[targety, targetx] = endState
-
 def transportStep(orby, orbx, targety, targetx, permission, endState):
 	global cury, curx, board, lockedBoard, dirarray8, pathList, mixedUp
 	success = True
@@ -391,7 +388,7 @@ def transportStep(orby, orbx, targety, targetx, permission, endState):
 		mixedUp = []
 		return
 
-def getStepPriority(y,x):
+def getStepPriority(y,x): # limits the solving to the edge of the unsolved area, so it decreases in a rectangle
 	global top, bottom, left, right
 	if lockedBoard[y,x] == 1: return 0
 	if not 0 in lockedBoard[top,:]: top = top+1
@@ -452,15 +449,13 @@ def getStepPriority(y,x):
 		print "idk screwed up in getStepPriority though"
 		exit(0)
 		'''
-
-def getCost(locy,locx,priority):
+def getCost(locy,locx,priority): # gets the distance the finger would need to travel to fill an unlocked edge slot
 	global board, cury, curx
 	orby, orbx = search(locy,locx,coloredBoard[locy,locx])
 	if locy == orby and locx == orbx:
 		return 0
 	return float(mdistance(cury, curx, orby + min(1, max(-1, locy-orby)), orbx + min(1, max(-1, locx-orbx)))+1)/priority
-
-def step():
+def step(): #moves the board one step closer to the solved board
 	global board, lockedBoard, coloredBoard, cury, curx
 	if len(swipelist) > len(shortpath):
 		return False
@@ -517,13 +512,11 @@ class unique_element:
     def __init__(self,value,occurrences):
         self.value = value
         self.occurrences = occurrences
-
 def perm_unique(elements):
     eset=set(elements)
     listunique = [unique_element(i,elements.count(i)) for i in eset]
     u=len(elements)
     return perm_unique_helper(listunique,[0]*u,u-1)
-
 def perm_unique_helper(listunique,result_list,d):
     if d < 0:
         yield tuple(result_list)
@@ -597,12 +590,12 @@ def getApproxLength(sBoard):
 
 def arrangeBoardRandom():
 	global solvedBoard, lockedBoard, coloredBoard, arrLocs, board, left, right, top, bottom, shortpath, curx, cury
-	solvedBoard = np.zeros_like(board)
 	getMatches()
 	shortpath = xrange(300)
 	minapprox = 300
+	starttime = time()
 	for i in xrange(2000):
-		if len(shortpath) < 75:
+		if len(shortpath) < 75 or time()-starttime < 1: # stops if the solution is good enough or if it hasn't found a better solution in the last second
 			break
 		match = random.sample(allMatches,len(allMatches))
 		colors = [x[0] for x in match]
@@ -610,7 +603,7 @@ def arrangeBoardRandom():
 		solvedBoard = np.zeros_like(board)
 		lockedBoard = np.zeros_like(board)
 		arrLocs = []
-		if brute(0,0,1,lengths):
+		if brute(0,0,1,lengths): #tries to make a board from all of the matches via brute force
 			#print 'a'*1000
 
 			maxi = np.amax(solvedBoard)
@@ -629,6 +622,7 @@ def arrangeBoardRandom():
 				if len(swipelist) < len(shortpath): #could add more checks like max combo
 					shortpath = swipelist
 					minapprox = approxLen
+					starttime = time()
 				print len(swipelist), approxLen
 				board = np.copy(tempboard)
 
@@ -661,6 +655,7 @@ def solveBoard():
 	print len(moves)
 	print "time to execute =", time() - starttime
 	exeswipe(moves)
+	
 if __name__ == '__main__':
     solveBoard()
 
