@@ -5,10 +5,10 @@
 
 from time import sleep
 from time import time
+import adb_injection #script that sends list of positions to the phone
 import numpy as np
 import subprocess
 import itertools
-import cProfile
 import random
 import cv2
 import os
@@ -17,9 +17,9 @@ import os
 #instead of going through the reorganization every time, instead try permutations of colors that can be changed
 
 
-sp56 = 177
-startx = 96
-starty = 1124
+sp56 = adb_injection.sp56
+startx = adb_injection.startx
+starty = adb_injection.starty
 boardWidth = 6
 boardHeight = 5
 top,bottom,left,right = 0,boardHeight-1,0,boardWidth-1
@@ -33,55 +33,6 @@ pathList = [[99,99],[99,89],[99,79]] # a list of all the places the picked-up or
 matchLocs = [[99,99,99,99,99]] # a list of all the locations of matches in the board
 mixedUp = []
 swipelist = []
-
-#------------------------------------------------
-# sending moves to phone
-#------------------------------------------------
-
-
-
-def adbdevices():
-	return [dev.split('\t')[0] for dev in subprocess.check_output(['adb', 'devices']).splitlines() if dev.endswith('\tdevice')]
-def touchscreen_devices(serial=None):
-	return [dev.splitlines()[0].split()[-1] for dev in adbshell('getevent -il', serial).split('add device ') if dev.find('ABS_MT_POSITION_X') > -1]
-def genswipe(devicename, swipelist, serial=None):
-	pixellist = [[x[1]*sp56+startx,x[0]*sp56+starty] for x in swipelist]
-
-	retval = []
-	retval.append('sendevent ' + devicename + ' 1 330 1')
-
-	for entry in pixellist:
-		retval.append('sendevent {} 3 53 {}'.format(devicename, str(entry[0])))
-		retval.append('sendevent {} 3 54 {}'.format(devicename, str(entry[1])))
-		retval.append('sendevent {} 0 0 0'.format(devicename))
-
-	retval.append('sendevent {} 3 57 -1'.format(devicename))
-	retval.append('sendevent {} 1 330 0'.format(devicename))
-	retval.append('sendevent {} 0 0 0'.format(devicename))
-	return retval
-def exeswipe(swipe):
-
-	cmds = ['#!/bin/sh','echo Running - signature function']
-	serial = adbdevices()[0]
-	if not serial:
-		exit(0)
-	devicename = touchscreen_devices(serial)[0]
-	cmds += genswipe(devicename, swipe, serial)
-
-	open('to_push.scr','w').write('\n'.join(cmds))
-	subprocess.call("adb push to_push.scr /data/local/tmp/to_push.scr", shell=True)
-	subprocess.call("adb shell chmod 0777 /data/local/tmp/to_push.scr", shell=True)
-	subprocess.call("adb shell sh /data/local/tmp/to_push.scr", shell=True)
-	subprocess.call("echo run", shell=True)
-def adbshell(command, serial=None): # legacy code I really need to remove dependency on this
-	args = ['adb']
-	if serial is not None:
-		args.append('-s')
-		args.append(serial)
-	args.append('shell')
-	args.append(command)
-	return os.linesep.join(subprocess.check_output(args).split('\r\n')[0:-1])
-
 
 #------------------------------------------------
 # getting board
@@ -106,12 +57,6 @@ def getBoard():
 	#jammer =
 	#mortal poison =
 	#imgsize = len(fire) # for color averaging techniques
-	''' # for color averaging techniques
-	avgcolor = []
-	for image in imarray:
-		avgcolor.append(np.average(np.average(image,axis=0),axis=0))
-	threshold = 0.9
-	'''
 
 	subprocess.call('adb shell screencap /sdcard/screencap.rgba',shell=True) # take and pull screenshot
 	subprocess.call('adb pull /sdcard/screencap.rgba',shell=True) # stored in same folder as this file
@@ -123,60 +68,6 @@ def getBoard():
 
 
 	board = np.zeros([boardHeight,boardWidth],dtype = int)
-	''' #blind template matching (fails on plusses)
-	for cval,template in enumerate(imarray):
-		res = cv2.matchTemplate(img,template,cv2.TM_CCOEFF_NORMED)
-		loc = np.where(res > threshold)
-		scaledloc = [[int((float(loc[0][i])-starty)/sp56+0.5),int((float(loc[1][i])-startx)/sp56+0.5)] for i in xrange(len(loc[0]))] # scales the values returned by
-np.where
-		try: scaledloc = np.unique(scaledloc,axis=0) #check for duplicates - duplicates happen when threshold is low
-		except: break
-		for entry in scaledloc:
-			if board[entry[0]][entry[1]] != 0:
-				print "Error, orb recognized as multiple colors"
-				exit(0)
-			board[entry[0]][entry[1]] = cval+1
-	'''
-	""" #average color calculations (fails on bright fires and bright hearts)
-	if 0 in board:    # made to be done after the template matching
-		invloc = np.where(board == 0)
-		boardloc = [[invloc[0][i],invloc[1][i]] for i in xrange(len(invloc[0]))]
-		imgloc = [[invloc[0][i]*sp56+starty-imgsize/2,invloc[1][i]*sp56+startx-imgsize/2] for i in xrange(len(invloc[0]))]
-		for i, entry in enumerate(imgloc):
-			unkorb = img[entry[0]:entry[0]+imgsize,entry[1]:entry[1]+imgsize]
-			cv2.imshow('image',unkorb)
-			cv2.waitKey(0)
-			cv2.destroyAllWindows()
-			unkavg = np.average(np.average(unkorb,axis=0),axis=0)
-			compavg = [np.dot(unkavg,x)/np.linalg.norm(unkavg)/np.linalg.norm(x) for x in avgcolor]
-			board[boardloc[i][0],boardloc[i][1]] = compavg.index(max(compavg))+1
-			print "orb at {} identified as {}".format([boardloc[i][0],boardloc[i][1]],board[boardloc[i][0],boardloc[i][1]])
-			print ' '
-			''' #smallest vector difference
-			unkavg = np.average(np.average(unkorb,axis=0),axis=0)
-			compavg = [np.linalg.norm(unkavg-x) for x in avgcolor]
-			board[boardloc[i][0],boardloc[i][1]] = compavg.index(min(compavg))+1
-			print "orb at {} identified as {}".format([boardloc[i][0],boardloc[i][1]],board[boardloc[i][0],boardloc[i][1]])
-			print ' '
-			'''
-	"""
-	''' #contor recognition (this sucks in general, idk probably because it just looks at the first contour, could be better)
-	for y in xrange(boardHeight): #roll this back, make one of the images larger, and search for the edges inside the bigger one
-		for x in xrange(boardWidth):
-			imgy = y*sp56+starty-imgsize/2
-			imgx = x*sp56+startx-imgsize/2
-			unkorb = img[imgy:imgy+imgsize,imgx:imgx+imgsize]
-			unkedge = cv2.Canny(unkorb,c_low,c_high) #contour recognition
-			a,unkcontours,hierarchy = cv2.findContours(unkedge,2,1)
-			compcontour = []
-			for orb in imarray:
-				a,orbcontours,hierarchy = cv2.findContours(orb,2,1)
-				compcontour.append(cv2.matchShapes(unkcontours[0],orbcontours[0],1,0.0))
-			board[y,x] = compcontour.index(min(compcontour))+1
-			cv2.imshow('image',unkedge)
-			cv2.waitKey(0)
-			cv2.destroyAllWindows()
-	'''
 	for y in xrange(boardHeight): # windowed template matching (works very well)
 		for x in xrange(boardWidth):
 			imgy = y*sp56+starty-sp56/2
@@ -197,8 +88,8 @@ np.where
 	return board
 
 #------------------------------------------------
-# solving board and generating moves
-#-------------------------------------------------
+# getting information from the board
+#------------------------------------------------
 def mv(y, x): # appends the move made to swipelist
 	swipelist.append([y,x])
 def tdistance(y1, x1, y2, x2): # calculates the number of moves it would take to transport an orb from one place to another (will probably need a path distance function eventually)
@@ -211,7 +102,6 @@ def exists(p): # makes sure that the location is within orb bounds
 	if (p[0] < boardHeight and p[1] < boardWidth and p[1] >= 0 and p[0] >= 0):
 		return True
 	return False
-
 def search(starty, startx, goal): #searches for the closest transport-distanced orb that matches the color desired
 	global cury, curx, board, lockedBoard
 	miny, minx = 50, 50
@@ -232,6 +122,11 @@ def search(starty, startx, goal): #searches for the closest transport-distanced 
 		exit(0)
 	return miny, minx
 
+	
+
+#------------------------------------------------
+# manipulating the board
+#------------------------------------------------
 def swap(y, x):
 	global cury, curx, board, lockedBoard, pathList, mixedUp, swipelist
 	if len(swipelist) > 300:
@@ -660,7 +555,7 @@ def solveBoard():
 	print coloredBoard
 	print len(moves)
 	print "time to execute =", time() - starttime
-	exeswipe(moves)
+	adb_injection.exeswipe(moves)
 if __name__ == '__main__':
     solveBoard()
 
