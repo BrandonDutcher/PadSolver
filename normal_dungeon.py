@@ -12,14 +12,21 @@ import cv2
 
 refPt = []
 cropping = False
+confirm = False
+mode = 'full'
+movetime = 9
 
 
 def printMenu():
 	print ""
+	print "0: Autorun through everything based on preset conditions"
 	print "# > 0: solve # of boards (until end)"
-	print "0: solve until end of dungeon"
 	print "select: select cropped image"
+	print "input: manually input all the orbs (in case of clouds, blinds, etc)"
+	print "confirm: toggle whether the solver asks for confirmation of board"
 	print "config: configure what the solver does"
+	print "mode: sets the orb grouping mode"
+	print "movetime: set the time your team has to move orbs"
 	print "issues: prints known problems that I'm too lazy to solve"
 	
 def printIssues():
@@ -32,8 +39,55 @@ def printIssues():
 	print "Exits if achievement box (rank or such) pops up"
 	print "Exits if monster box fills up"
 	print "Occasionally gets confused on selling monsters screen"
+	print "Mortal poison can't be identified yet"
+	print "Blinds, clouds, tape, etc, are not recognized"
 	print "------------------------------------------------------------"
 	print ""
+	
+def changeMode():
+	global mode
+	print ""
+	print "Available Modes"
+	print "------------------------------------------------------------"
+	print "1. Full solve"
+	print "2. Lock to 7 combos"
+	print "3. Max combos"
+	print "4. Max combos with setup"
+	print "5. Fastest solve"
+	print "6. Fastest solve with setup"
+	mode = ''
+	while not mode:
+		a = raw_input("Choose Mode: ")
+		if a == "1":
+			mode = 'full'
+		elif a == "2":
+			mode = '7'
+		elif a == "3":
+			mode = 'max'
+		elif a == "4":
+			mode = 'max_setup'
+		elif a == "5":
+			mode = 'fast'
+		elif a == "6":
+			mode = 'fast_setup'
+		else:
+			print "that is not a valid mode"
+	print "Setting to Mode " + mode
+	return
+	
+def setMovetime():
+	global movetime
+	while True:
+		try:
+			movetime = float(raw_input("Enter amount of time you have to solve: "))
+			if movetime > 100:
+				movetime = 100
+			if movetime < 4:
+				movetime = 4
+			break
+		except ValueError:
+			print "That is not a number"
+	print "Time set for {} seconds".format(movetime)
 
 def click_and_crop(event, x, y, flags, param):
 	# grab references to the global variables
@@ -127,6 +181,53 @@ def getScreenshot():
 	subprocess.call('magick convert -size 1080x1920 -depth 8 screencap.rgba screencap.png',shell=True) #converts from rgba to png
 	img = cv2.imread('screencap.png',0)
 	return img
+def inputBoard():
+	print "Input orbs from the top left across"
+	print "Red: 1, blue: 2, green: 3, yellow: 4, purple: 5, pink: 6, jammer: 7, poison: 8, mortal poison*: 9"
+	b = np.zeros((oneBoardSolve.boardHeight,oneBoardSolve.boardWidth), dtype=int)
+	input = ""
+	i = 0
+	while i < oneBoardSolve.boardHeight*oneBoardSolve.boardWidth:
+		print b
+		input += raw_input("orb > ")
+		while i < len(input):
+			y = int(i/6)
+			x = i % 6
+			try:
+				b[y,x] = int(input[i])
+				if b[y,x] > 9 or b[y,x] <= 0:
+					print "That is not a valid orb number"
+					raise Exception()
+				i += 1
+			except ValueError:
+				print "That is not a valid number"
+				input = input[:i]
+			except Exception:
+				input = input[:i]
+				
+		"""
+	for y in xrange(oneBoardSolve.boardHeight):
+		for x in xrange(oneBoardSolve.boardWidth):
+			while True:
+				try:
+					b[y,x] = int(raw_input("> "))
+					break
+				except ValueError:
+					print "That is not an integer"
+					"""
+	img = getScreenshot()
+	while(True):
+		try:
+			print 'a'
+			a = oneBoardSolve.solveBoard(img,mode,movetime,confirm,b)
+			if a:
+				sleep(15)
+			break
+		except (KeyboardInterrupt):
+			print "Keyboard Interrupt"
+			return
+		#except:
+		#	pass
 
 def checkHome(img):
 	others = cv2.imread('assets/others.png',0)
@@ -238,9 +339,13 @@ def runBattles(rounds = 10000):
 			else:
 				while(True):
 					try:
-						if oneBoardSolve.solveBoard(img):
-							sleep(15)
-							break
+						a = oneBoardSolve.solveBoard(img,mode,movetime,confirm)
+						if a:
+							if mode == 'fast' or mode == 'fast_setup':
+								raw_input('waiting')
+							else:
+								sleep(15)
+						break
 					except (KeyboardInterrupt):
 						print "Keyboard Interrupt"
 						return
@@ -271,10 +376,13 @@ def run(section,dungeon,floor,sell):
 			exit()
 		
 def main():
+	global confirm
 	print "Welcome to PadSolver, this utility solves boards from Puzzle and Dragons, and then automatically does the solve on your phone."
+	printMenu()
 	while True:
-		printMenu()
 		text = raw_input(">")
+		if text == "help" or text == "Help":
+			printMenu()
 		if text == "select":
 			refineBounds()
 		try:
@@ -283,9 +391,22 @@ def main():
 		except ValueError:
 			pass
 		if text == "0":
-			run("technical","newest","newest","sell")
+			run("special","Persona","Mementos-Int","keep")
 		if text == "issues":
 			printIssues()
+		if text == "mode":
+			changeMode()
+		if text == "movetime":
+			setMovetime()
+		if text == "confirm":
+			confirm = not confirm
+			if confirm:
+				print "Solver will now ask for confirmation"
+			elif not confirm:
+				print "Solver will no longer ask for confirmation"
+			sleep(0.5)
+		if text == "input":
+			inputBoard()
 
 if __name__ == "__main__":
 	main()

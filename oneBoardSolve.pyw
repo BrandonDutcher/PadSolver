@@ -11,6 +11,7 @@ import numpy as np
 import subprocess
 import itertools
 import random
+import msvcrt
 import cv2
 import os
 
@@ -32,6 +33,7 @@ dirarray8 = [[0,1],[1,1],[1,0],[1,-1],[0,-1],[-1,-1],[-1,0],[-1,1]]
 dirarray4 = [[0,1],[1,0],[0,-1],[-1,0]]
 pathList = [[99,99],[99,89],[99,79]] # a list of all the places the picked-up orb has been
 matchLocs = [[99,99,99,99,99]] # a list of all the locations of matches in the board
+trueBoard = np.zeros((boardWidth,boardHeight))
 mixedUp = []
 swipelist = []
 
@@ -54,8 +56,8 @@ def getBoard(img = []):
 	heart = cv2.imread('assets/heartorb.png',0)[10:-10,10:-10]
 	jammer = cv2.imread('assets/jammerorb.png',0)[10:-10,10:-10]
 	poison = cv2.imread('assets/poisonorb.png',0)[10:-10,10:-10]
-	imarray = [fire,water,wood,light,dark,heart,jammer,poison]
 	#mortal poison =
+	imarray = [fire,water,wood,light,dark,heart,jammer,poison]
 	
 	if not len(img):
 		print "no image passed"
@@ -82,12 +84,25 @@ def getBoard(img = []):
 			#cv2.waitKey(0)
 			#cv2.destroyAllWindows()
 	#board = np.array([[5,6,3,6,3,1],[6,4,4,5,4,3],[4,5,4,1,6,5],[5,2,2,3,3,2],[3,2,2,1,1,2]])
-	for y in range(boardHeight):
-		for x in range(boardWidth):
+	for y in xrange(boardHeight):
+		for x in xrange(boardWidth):
 			orbCount[board[y,x]] += 1
 	print board
 	return board
 
+def raw_input_with_timeout(prompt, timeout=30.0):
+    finishat = time() + timeout
+    result = []
+    while True:
+        if msvcrt.kbhit():
+            result.append(msvcrt.getche())
+            if result[-1] == '\r':   # or \n, whatever Win returns;-)
+                return ''.join(result)
+            sleep(0.0001)          # just to yield to other processes/threads
+        else:
+            if time() > finishat:
+                return None
+	
 #------------------------------------------------
 # getting information from original board
 #------------------------------------------------
@@ -121,7 +136,7 @@ def search(starty, startx, goal): #searches for the closest transport-distanced 
 		print coloredBoard
 		print len(shortpath), "was the best though"
 		print cury, curx
-		exit(0)
+		raise Exception()
 	return miny, minx
 def getMatches(): # looks at the board and groups the orbs into their best potential combos
 	global orbCount
@@ -132,12 +147,30 @@ def getMatches(): # looks at the board and groups the orbs into their best poten
 	for color in xrange(len(orbCount)):
 		while orbCount[color] != 0:
 			quantity = orbCount[color]
-			if quantity >= 3:
-				allMatches.append([color,3+quantity%3])
-				orbCount[color] -= 3+quantity%3
-			elif quantity > 0:
-				trashOrbs.append([color,1])
-				orbCount[color] -= 1
+			if mode == 'full' or mode == '7':
+				if quantity >= 3:
+					allMatches.append([color,3+quantity%3])
+					orbCount[color] -= 3+quantity%3
+				elif quantity > 0:
+					trashOrbs.append([color,1])
+					orbCount[color] -= 1
+			elif mode == 'max' or mode == 'fast':
+				if quantity >= 3:
+					allMatches.append([color,3])
+					orbCount[color] -= 3
+				elif quantity > 0:
+					trashOrbs.append([color,1])
+					orbCount[color] -= 1
+			elif mode == 'max_setup' or mode == 'fast_setup':
+				if quantity >= 3:
+					allMatches.append([color,3])
+					orbCount[color] -= 3
+				elif quantity > 0:
+					trashOrbs.append([color,quantity])
+					orbCount[color] -= quantity
+			else:
+				print "I don't know what mode this is in"
+	print allMatches + trashOrbs
 	return allMatches + trashOrbs
 
 	
@@ -151,10 +184,10 @@ def swap(y, x):
 	if len(swipelist) > 300:
 		print 'swipelist longer than 300 entries. Likely entered a loop somewhere, not going to execute'
 		print len(shortpath), "was best though"
-		exit(0)
+		raise Exception()
 	if abs(cury-y > 1) or abs(curx-x > 1):
 		print 'Error, moving too far in a swap'
-		exit()
+		raise Exception()
 
 	if lockedBoard[y,x] == 1:
 		lockedBoard[y,x] = 0
@@ -284,7 +317,7 @@ def transportStep(orby, orbx, targety, targetx, permission, endState):
 			print lockedBoard
 			print ' '
 			print mixedUp
-			exit()
+			raise Exception()
 		#print 'sliding in', board[orby,orbx]
 		pathList = [[99,99],[99,89],[99,79]]
 		transportOrb(orby, orbx, targety, targetx, True, endState) 	#gives access to push orb through locked orbs
@@ -413,14 +446,17 @@ def step(): #moves the board one step closer to the solved board
 	transportStep(orby, orbx, locy, locx, False, endState)
 	return True
 def arrangeBoardRandom():
-	global solvedBoard, lockedBoard, coloredBoard, arrLocs, board, left, right, top, bottom, shortpath, curx, cury
+	global solvedBoard, lockedBoard, coloredBoard, arrLocs, board, left, right, top, bottom, shortpath, curx, cury, trueBoard
 	getMatches()
 	shortpath = xrange(300)
 	minapprox = 300
 	starttime = time()
+	if 'fast' in mode:
+		timeouttime = 30
+	else:
+		timeouttime = 10
 	for i in xrange(3000):
-		timeouttime = 10*float(len(shortpath)-60)/100
-		if time()-starttime > timeouttime: # stops if the solution is good enough or if it hasn't found a better solution in the last second
+		if (time()-starttime > timeouttime) or (len(shortpath) < movetime * 10) or (raw_input_with_timeout('input: ',0.001) and 'fast' in mode): # stops if the solution is good enough or if it hasn't found a better solution in the last second
 			break
 		match = random.sample(allMatches,len(allMatches))
 		colors = [x[0] for x in match]
@@ -444,9 +480,10 @@ def arrangeBoardRandom():
 
 				top,bottom,left,right = 0,boardHeight-1,0,boardWidth-1
 				swipelist = getMoves()
-				if len(swipelist) < len(shortpath): #could add more checks like max combo
+				if len(swipelist) < len(shortpath) and (mode != '7' or countCombos(coloredBoard) == 7): #could add more checks like max combo
 					shortpath = swipelist
 					minapprox = approxLen
+					trueBoard = np.copy(coloredBoard)
 					starttime = time()
 					print len(swipelist)#, approxLen
 				board = np.copy(tempboard)
@@ -477,22 +514,22 @@ def getStepPriority(y,x): # limits the solving to the edge of the unsolved area,
 		if 0 in lockedBoard[0:top,:]:
 			print "HERE (top)"
 			print lockedBoard
-			exit(0)
+			raise Exception()
 	if bottom<boardHeight-1:
 		if 0 in lockedBoard[bottom+1:boardHeight,:]:
 			print "HERE (bottom)"
 			print lockedBoard
-			exit(0)
+			raise Exception()
 	if top>0:
 		if 0 in lockedBoard[:,0:left]:
 			print "HERE (left)"
 			print lockedBoard
-			exit(0)
+			raise Exception()
 	if top>0:
 		if 0 in lockedBoard[:,right+1:boardWidth]:
 			print "HERE (right)"
 			print lockedBoard
-			exit(0)
+			raise Exception()
 	if bottom-top < right-left and (x == left or x == right): return 2
 	if right-left < bottom-top and (y == top or y == bottom): return 2
 	if y == top or y == bottom or x == left or x == right: return 1
@@ -525,7 +562,7 @@ def getStepPriority(y,x): # limits the solving to the edge of the unsolved area,
 		return 1000
 	else:
 		print "idk screwed up in getStepPriority though"
-		exit(0)
+		raise Exception()
 		'''
 def getCost(locy,locx,priority): # gets the distance the finger would need to travel to fill an unlocked edge slot
 	global board, cury, curx
@@ -534,6 +571,44 @@ def getCost(locy,locx,priority): # gets the distance the finger would need to tr
 		return 0
 	return float(mdistance(cury, curx, orby + min(1, max(-1, locy-orby)), orbx + min(1, max(-1, locx-orbx)))+1)/priority
 
+def returnPointsOfPiece(y,x,dir,length):
+	list = []
+	for i in xrange(length):
+		list.append([y+dir[0]*i,x+dir[1]*i])
+	return list
+def fill(b,y,x,num):
+	b[y,x] = num
+	pos = np.array([y,x])
+	for dir in dirarray4:
+		if exists(pos+dir) and b[y+dir[0],x+dir[1]] == 1:
+			fill(b,y+dir[0],x+dir[1],num)
+def countCombos(b):
+	colorMatches = np.zeros((len(orbCount),boardHeight,boardWidth))
+	for y in xrange(boardHeight-2):
+		for x in xrange(boardWidth):
+			a = returnPointsOfPiece(y,x,[1,0],3)
+			color = b[a[0][0],a[0][1]]
+			if b[a[1][0],a[1][1]] == color and b[a[2][0],a[2][1]] == color:
+				for loc in a:
+					colorMatches[color,loc[0],loc[1]] = 1
+	for y in xrange(boardHeight):
+		for x in xrange(boardWidth-2):
+			a = returnPointsOfPiece(y,x,[0,1],3)
+			color = b[a[0][0],a[0][1]]
+			if b[a[1][0],a[1][1]] == color and b[a[2][0],a[2][1]] == color:
+				for loc in a:
+					colorMatches[color,loc[0],loc[1]] = 1
+	num = 2
+	totalMatches = 0
+	for b in colorMatches:
+		for y in xrange(boardHeight):
+			for x in xrange(boardWidth):
+				if b[y,x] == 1:
+					fill(b,y,x,num)
+					num += 1
+		totalMatches += num - 2
+		num = 2
+	return totalMatches	
 
 def getMoves():
 	global swipelist, lockedBoard, curx, cury
@@ -547,9 +622,18 @@ def getMoves():
 			return xrange(300)
 	return swipelist
 
-def solveBoard(img = []):
-	global board, lockedBoard, trashOrbs, allMatches
-	board = getBoard(img)
+def solveBoard(img = [],m = 'full',ma = 9,requireConfirm = False, boardGiven = np.array([0])):
+	global board, lockedBoard, trashOrbs, allMatches, mode, movetime
+	mode = m
+	movetime = ma
+	if boardGiven.all():
+		board = np.copy(boardGiven)
+		for y in range(boardHeight):
+			for x in range(boardWidth):
+				orbCount[board[y,x]] += 1
+	else:
+		board = getBoard(img)
+	print board
 	starttime = time()
 	lockedBoard = np.zeros_like(board, dtype=int)
 	allMatches = getMatches()
@@ -558,11 +642,24 @@ def solveBoard(img = []):
 	#numberBoard()
 	#print board
 	#print lockedBoard
-	print coloredBoard
-	print len(moves)
+	print ""
+	print "Solved Board:"
+	print trueBoard
+	print "length = " + str(len(moves))
+	print "combo = " + str(countCombos(trueBoard))
 	print "time to execute =", time() - starttime
-	adb_injection.exeswipe(moves)
-	return True
+	if requireConfirm:
+		conf = raw_input("confirm board: (y/n) ")
+		if conf == 'y' or conf == 'Y' or conf == 'yes' or conf == 'Yes':
+			adb_injection.exeswipe(moves)
+			print "Executing..."
+			return True
+		else:
+			print "Ending..."
+			return False
+	else:
+		adb_injection.exeswipe(moves)
+		return True
 	
 if __name__ == '__main__':
     solveBoard()
