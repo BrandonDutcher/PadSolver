@@ -7,6 +7,7 @@ import numpy as np
 import unicodedata
 import pytesseract
 import subprocess
+import winsound
 import cv2
 
 
@@ -18,46 +19,46 @@ movetime = 9
 
 
 def printMenu():
-	print ""
-	print "0: Autorun through everything based on preset conditions"
-	print "# > 0: solve # of boards (until end)"
-	print "select: select cropped image"
-	print "input: manually input all the orbs (in case of clouds, blinds, etc)"
-	print "confirm: toggle whether the solver asks for confirmation of board"
-	print "config: configure what the solver does"
-	print "mode: sets the orb grouping mode"
-	print "movetime: set the time your team has to move orbs"
-	print "issues: prints known problems that I'm too lazy to solve"
+	print("")
+	print("0: Autorun through everything based on preset conditions")
+	print("# > 0: solve # of boards (until end)")
+	print("select: select cropped image")
+	print("input: manually input all the orbs (in case of clouds, blinds, etc)")
+	print("confirm: toggle whether the solver asks for confirmation of board")
+	print("config: configure what the solver does")
+	print("mode: sets the orb grouping mode")
+	print("movetime: set the time your team has to move orbs")
+	print("issues: prints known problems that I'm too lazy to solve")
 	
 def printIssues():
-	print ""
-	print "Known issues:"
-	print "------------------------------------------------------------"
-	print "Doesn't work on 7x6 or 5x4 boards,"
-	print "Gets stuck if team fails dungeon"
-	print "Doesn't check for sufficient stamina"
-	print "Exits if achievement box (rank or such) pops up"
-	print "Exits if monster box fills up"
-	print "Occasionally gets confused on selling monsters screen"
-	print "Mortal poison can't be identified yet"
-	print "Blinds, clouds, tape, etc, are not recognized"
-	print "------------------------------------------------------------"
-	print ""
+	print("")
+	print("Known issues:")
+	print("------------------------------------------------------------")
+	print("Doesn't work on 7x6 or 5x4 boards,")
+	print("Gets stuck if team fails dungeon")
+	print("Doesn't check for sufficient stamina")
+	print("Exits if achievement box (rank or such) pops up")
+	print("Exits if monster box fills up")
+	print("Occasionally gets confused on selling monsters screen")
+	print("Mortal poison can't be identified yet")
+	print("Blinds, clouds, tape, etc, are not recognized")
+	print("------------------------------------------------------------")
+	print("")
 	
 def changeMode():
 	global mode
-	print ""
-	print "Available Modes"
-	print "------------------------------------------------------------"
-	print "1. Full solve"
-	print "2. Lock to 7 combos"
-	print "3. Max combos"
-	print "4. Max combos with setup"
-	print "5. Fastest solve"
-	print "6. Fastest solve with setup"
+	print("")
+	print("Available Modes")
+	print("------------------------------------------------------------")
+	print("1. Full solve")
+	print("2. Lock to 7 combos")
+	print("3. Max combos")
+	print("4. Max combos with setup")
+	print("5. Fastest solve")
+	print("6. Fastest solve with setup")
 	mode = ''
 	while not mode:
-		a = raw_input("Choose Mode: ")
+		a = input("Choose Mode: ")
 		if a == "1":
 			mode = 'full'
 		elif a == "2":
@@ -71,23 +72,23 @@ def changeMode():
 		elif a == "6":
 			mode = 'fast_setup'
 		else:
-			print "that is not a valid mode"
-	print "Setting to Mode " + mode
+			print("that is not a valid mode")
+	print("Setting to Mode " + mode)
 	return
 	
 def setMovetime():
 	global movetime
 	while True:
 		try:
-			movetime = float(raw_input("Enter amount of time you have to solve: "))
+			movetime = float(input("Enter amount of time you have to solve: "))
 			if movetime > 100:
 				movetime = 100
 			if movetime < 4:
 				movetime = 4
 			break
 		except ValueError:
-			print "That is not a number"
-	print "Time set for {} seconds".format(movetime)
+			print("That is not a number")
+	print("Time set for {} seconds".format(movetime))
 
 def click_and_crop(event, x, y, flags, param):
 	# grab references to the global variables
@@ -138,22 +139,22 @@ def refineBounds():
 		roi = clone[refPt[0][1]:refPt[1][1], refPt[0][0]:refPt[1][0]]
 		cv2.imshow("ROI", roi)
 		cv2.waitKey(0)
-		print refPt[0][1],":",refPt[1][1],",", refPt[0][0],":",refPt[1][0]
+		print(refPt[0][1],":",refPt[1][1],",", refPt[0][0],":",refPt[1][0])
 	cv2.destroyAllWindows()
 '''
 	x1,x2,y1,y2 = 0,1080,0,1920 #should really get data from image, not just 1920 by 1080
 	while(True):
 		cv2.imshow('image',img[y1:y2,x1:x2])
 		cv2.waitKey(0)
-		a = raw_input("Choose side to refine using l,r,u,d\n")
+		a = input("Choose side to refine using l,r,u,d\n")
 		if a == "u":
-			y1 = int(raw_input("Top side new bound:\n"))
+			y1 = int(input("Top side new bound:\n"))
 		elif a == "l":
-			x1 = int(raw_input("Left side new bound:\n"))
+			x1 = int(input("Left side new bound:\n"))
 		elif a == "d":
-			y2 = int(raw_input("Bottom side new bound:\n"))
+			y2 = int(input("Bottom side new bound:\n"))
 		elif a == "r":
-			x2 = int(raw_input("Right side new bound:\n"))
+			x2 = int(input("Right side new bound:\n"))
 		elif a == "exit": 
 			break
 		cv2.destroyAllWindows()
@@ -169,84 +170,91 @@ def tapOnImage(img, button, occurence = 0):
 	loc = np.where(cv2.matchTemplate(img,cv2.imread('assets/{}'.format(button),0),cv2.TM_CCOEFF_NORMED) > 0.96)
 	if len(loc[0]) > 0:
 		tap(loc[1][occurence],loc[0][occurence])
-		print loc[1][occurence],loc[0][occurence]
+		print(loc[1][occurence],loc[0][occurence])
 		return True
 	return False
 	
 
 
 def getScreenshot():
-	subprocess.call('adb shell screencap /sdcard/screencap.rgba',shell=True) # take and pull screenshot
-	subprocess.call('adb pull /sdcard/screencap.rgba',shell=True) # stored in same folder as this file
-	subprocess.call('magick convert -size 1080x1920 -depth 8 screencap.rgba screencap.png',shell=True) #converts from rgba to png
+	subprocess.call('adb shell screencap /sdcard/screencap.png',shell=True) # take and pull screenshot
+	subprocess.call('adb pull /sdcard/screencap.png',shell=True) # stored in same folder as this file
 	img = cv2.imread('screencap.png',0)
 	return img
 def inputBoard():
-	print "Input orbs from the top left across"
-	print "Red: 1, blue: 2, green: 3, yellow: 4, purple: 5, pink: 6, jammer: 7, poison: 8, mortal poison*: 9"
+	print("Input orbs from the top left across")
+	print("Red: 1, blue: 2, green: 3, yellow: 4, purple: 5, pink: 6, jammer: 7, poison: 8, mortal poison*: 9")
 	b = np.zeros((oneBoardSolve.boardHeight,oneBoardSolve.boardWidth), dtype=int)
 	input = ""
 	i = 0
 	while i < oneBoardSolve.boardHeight*oneBoardSolve.boardWidth:
-		print b
-		input += raw_input("orb > ")
+		print(b)
+		input += input("orb > ")
 		while i < len(input):
 			y = int(i/6)
 			x = i % 6
 			try:
 				b[y,x] = int(input[i])
 				if b[y,x] > 9 or b[y,x] <= 0:
-					print "That is not a valid orb number"
+					print("That is not a valid orb number")
 					raise Exception()
 				i += 1
 			except ValueError:
-				print "That is not a valid number"
+				print("That is not a valid number")
 				input = input[:i]
 			except Exception:
 				input = input[:i]
 				
 		"""
-	for y in xrange(oneBoardSolve.boardHeight):
-		for x in xrange(oneBoardSolve.boardWidth):
+	for y in range(oneBoardSolve.boardHeight):
+		for x in range(oneBoardSolve.boardWidth):
 			while True:
 				try:
-					b[y,x] = int(raw_input("> "))
+					b[y,x] = int(input("> "))
 					break
 				except ValueError:
-					print "That is not an integer"
+					print("That is not an integer")
 					"""
 	img = getScreenshot()
 	while(True):
 		try:
-			print 'a'
+			print('a')
 			a = oneBoardSolve.solveBoard(img,mode,movetime,confirm,b)
 			if a:
 				sleep(15)
 			break
 		except (KeyboardInterrupt):
-			print "Keyboard Interrupt"
+			print("Keyboard Interrupt")
 			return
 		#except:
 		#	pass
 
 def checkHome(img):
 	others = cv2.imread('assets/others.png',0)
-	if np.amax(cv2.matchTemplate(img[1760:,920:],others,cv2.TM_CCOEFF_NORMED)) > 0.98:
+	if np.amax(cv2.matchTemplate(img[1932 : 2085 , 876 : 1045],others,cv2.TM_CCOEFF_NORMED)) > 0.98:
 		return True
 	return False	
 def checkDungeon(img):
 	menu = cv2.imread('assets/Menu.png',0)
-	if np.amax(cv2.matchTemplate(img[75:110, 930:],menu,cv2.TM_CCOEFF_NORMED)) > 0.94:
+	if np.amax(cv2.matchTemplate(img[260 : 380,890 : 1060],menu,cv2.TM_CCOEFF_NORMED)) > 0.94:
 		return True
-	coin = cv2.imread('assets/Coin.png',0)
-	if np.amax(cv2.matchTemplate(img[70:150, 15:85],coin,cv2.TM_CCOEFF_NORMED)) > 0.94:
-		return True
-	return False	
+	#can also do coin
 def checkSell(img):
 	others = cv2.imread('assets/MonstersAcquired.png',0)
 	if np.amax(cv2.matchTemplate(img,others,cv2.TM_CCOEFF_NORMED)) > 0.99:
 		return True
 	return False
+def checkPoints(img):
+	points = cv2.imread('assets/Points.png',0)
+	if np.amax(cv2.matchTemplate(img,points,cv2.TM_CCOEFF_NORMED)) > 0.96:
+		return True
+	return False
+def checkFull(img):
+	full = cv2.imread('assets/YourMonsterBoxisFull.png',0)
+	if np.amax(cv2.matchTemplate(img,full,cv2.TM_CCOEFF_NORMED)) > 0.99:
+		return True
+	return False
+	
 	
 def checkStamina(img): #unused
 	text = pytesseract.image_to_string(img[243:290,500:664])
@@ -258,13 +266,13 @@ def getTab(img): #unused
 	cv2.waitKey(0)
 	cv2.destroyAllWindows()
 	raw_text = pytesseract.image_to_string(tab)
-	print len(raw_text)
+	print(len(raw_text))
 	convert_text = unicodedata.normalize('NFKD', raw_text).encode('ascii','ignore')
-	print convert_text
+	print(convert_text)
 	
 def goToDungeonSection(name):
-	tap(90,1830)
-	tap(90,1830)
+	tap(90,1950)
+	tap(90,1950)
 	sleep(1)
 	img = getScreenshot()
 	tapOnImage(img,'DungeonsScreen/{}.png'.format(name))
@@ -276,10 +284,10 @@ def goToDungeon(dungeonName):
 		try:
 			img = getScreenshot()
 			if not tapOnImage(img, dungeonName + ".png"):
-				print "I can't find the dungeon. The dungeon might not be on this page, scroll down to have it on screen and try again."
+				print("I can't find the dungeon. The dungeon might not be on this page, scroll down to have it on screen and try again.")
 				exit()
 		except (SystemExit):
-			print "It doesn't look like I have a dungeon of that name, try saving an image of the dungeon tile. Use the refineBounds() function and drag over the region you want to select."
+			print("It doesn't look like I have a dungeon of that name, try saving an image of the dungeon tile. Use the refineBounds() function and drag over the region you want to select.")
 			exit()
 def goToFloor(floorName):
 	if floorName == 'newest':
@@ -289,22 +297,22 @@ def goToFloor(floorName):
 		try:
 			img = getScreenshot()
 			if not tapOnImage(img, floorName + ".png"):
-				print "I can't find the floor. The dungeon might not be on this page, scroll down to have it on screen and try again."
+				print("I can't find the floor. The dungeon might not be on this page, scroll down to have it on screen and try again.")
 				exit()
 		except (SystemExit):
-			print "It doesn't look like I have a floor of that name, try saving an image of the dungeon tile. Use the refineBounds() function and drag over the region you want to select."
+			print("It doesn't look like I have a floor of that name, try saving an image of the dungeon tile. Use the refineBounds() function and drag over the region you want to select.")
 			exit()
 			
 	swipe(1040, 1600, 1040, 400) # go to top of helper screen
-	tap(540, 500)  # tap on helper
-	tap(540, 1100) # tap on ok
-	tap(540, 1570) # tap on enter
+	tap(540, 500)  # tap on first helper
+	tap(530,1180) # tap on select
+	tapOnImage(getScreenshot(),'Enter.png') # tap on enter
 		
 def sellScreen(sellMonsters = "ask"): # sell, ask, or keep
 	if sellMonsters == "sell":
 		img = getScreenshot()
 		if tapOnImage(img,"SellOne.png"): # if there's a 'sell monster' screen
-			print "Selling all monsters"
+			print("Selling all monsters")
 			swipe(180,760,900,760,500) #sell two rows of monsters
 			swipe(180,920,900,920,500)
 			img = getScreenshot()
@@ -312,29 +320,33 @@ def sellScreen(sellMonsters = "ask"): # sell, ask, or keep
 			tap(1070,1920/2, 200) # tap to exit monster screen
 			tap(1070,1920/2, 200)
 		else: # if there isn't a 'sell monster' screen
-			print "No monsters to be sold"
+			print("No monsters to be sold")
 	elif sellMonsters == 'ask':
-		test = raw_input("You should sell them now, restart by pressing enter right after selling them")
+		test = input("You should sell them now, restart by pressing enter right after selling them")
 	elif sellMonsters == 'keep':
 		pass
-	tap(1070,1920/2,200) #to exit sell screen
-	tap(1070,1920/2,200) #in case of level up screen
-	tap(585,1300) # tap to okay helper or decline friend, this declines the friend every time
+	tap(1000,1920/2,200) #to exit sell screen
+	tap(1000,1920/2,200) #in case of level up screen
+	tap(500,1300) # tap to okay helper or decline friend, this declines the friend every time
 		
 
 def runBattles(rounds = 10000):
-	for round in xrange(rounds):
+	for round in range(rounds):
 		img = getScreenshot()
 		if checkDungeon(img):
 			if tapOnImage(img,"OKEnd.png"): #put in game over condition
 				sleep(10)
-				for i in xrange(20):
+				for i in range(20):
 					sleep(1)
 					img = getScreenshot()
 					if checkSell(img):
-						return True
+						sellScreen("keep")
+						return
+					elif checkPoints(img):
+						tap(500,1300)
+						return
 					else:
-						tap(1070,1920/2,200)
+						tap(1000,1920/2,200)
 				break
 			else:
 				while(True):
@@ -342,23 +354,28 @@ def runBattles(rounds = 10000):
 						a = oneBoardSolve.solveBoard(img,mode,movetime,confirm)
 						if a:
 							if mode == 'fast' or mode == 'fast_setup':
-								raw_input('waiting')
+								input('waiting')
 							else:
 								sleep(15)
 						break
 					except (KeyboardInterrupt):
-						print "Keyboard Interrupt"
+						print("Keyboard Interrupt")
 						return
 					except:
 						pass
 		else:
-			print "This doesn't seem to be a dungeon"
+			print("This doesn't seem to be a dungeon")
 			exit()
 			
 def run(section,dungeon,floor,sell):
 	#refineBounds()
 	while True:
 		img = getScreenshot()
+		if checkFull(img):
+			duration = 1000  # millisecond
+			freq = 440  # Hz
+			winsound.Beep(freq, duration)
+			return
 		if checkDungeon(img):
 			runBattles()
 			sleep(2)
@@ -372,15 +389,15 @@ def run(section,dungeon,floor,sell):
 		elif checkSell(img):
 			sellScreen(sell)
 		else:
-			print "I don't know where I am"
+			print("I don't know where I am")
 			exit()
 		
 def main():
 	global confirm
-	print "Welcome to PadSolver, this utility solves boards from Puzzle and Dragons, and then automatically does the solve on your phone."
+	print("Welcome to PadSolver, this utility solves boards from Puzzle and Dragons, and then automatically does the solve on your phone.")
 	printMenu()
 	while True:
-		text = raw_input(">")
+		text = input(">")
 		if text == "help" or text == "Help":
 			printMenu()
 		if text == "select":
@@ -391,7 +408,7 @@ def main():
 		except ValueError:
 			pass
 		if text == "0":
-			run("special","Persona","Mementos-Int","keep")
+			run("normal","newest","newest","keep")
 		if text == "issues":
 			printIssues()
 		if text == "mode":
@@ -401,9 +418,9 @@ def main():
 		if text == "confirm":
 			confirm = not confirm
 			if confirm:
-				print "Solver will now ask for confirmation"
+				print("Solver will now ask for confirmation")
 			elif not confirm:
-				print "Solver will no longer ask for confirmation"
+				print("Solver will no longer ask for confirmation")
 			sleep(0.5)
 		if text == "input":
 			inputBoard()
